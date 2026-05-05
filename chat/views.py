@@ -2,10 +2,11 @@ from django.contrib.auth import authenticate
 from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
-from .serializers import UserSerializer, UserLoginSerializer
+from .models import Room, Message
+from .serializers import UserSerializer, UserLoginSerializer, RoomSerializer, MessageSerializer
 
 
 class RegisterView(generics.CreateAPIView):
@@ -49,4 +50,33 @@ class LoginView(APIView):
             {'error': 'Invalid credentials'},
             status=status.HTTP_401_UNAUTHORIZED
         )
+
+
+class RoomListCreateView(generics.ListCreateAPIView):
+    queryset = Room.objects.all()
+    serializer_class = RoomSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class RoomDetailView(generics.RetrieveAPIView):
+    queryset = Room.objects.all()
+    serializer_class = RoomSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class MessageListCreateView(generics.ListCreateAPIView):
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        room_id = self.kwargs.get('room_id')
+        return Message.objects.filter(room_id=room_id)
+
+    def perform_create(self, serializer):
+        room_id = self.kwargs.get('room_id')
+        serializer.save(user=self.request.user, room_id=room_id)
+
 
