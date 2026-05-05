@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import RoomList from './pages/RoomList';
+import ChatRoom from './pages/ChatRoom';
 import './App.css';
 
 const PrivateRoute = ({ children }) => {
@@ -28,6 +29,14 @@ function App() {
             element={
               <PrivateRoute>
                 <RoomList />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/chat/:roomName"
+            element={
+              <PrivateRoute>
+                <ChatRoom />
               </PrivateRoute>
             }
           />
