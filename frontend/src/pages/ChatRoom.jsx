@@ -62,14 +62,25 @@ const ChatRoom = () => {
       const data = JSON.parse(event.data);
 
       if (data.type === 'message') {
-        setMessages((prev) => [
-          ...prev,
-          {
-            user: { username: data.username, id: data.user_id },
-            content: data.message,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
+        setMessages((prev) => {
+          const isDuplicate = prev.some(
+            (msg) =>
+              msg.content === data.message &&
+              msg.user.username === data.username &&
+              Math.abs(new Date(msg.timestamp) - new Date()) < 1000
+          );
+
+          if (isDuplicate) return prev;
+
+          return [
+            ...prev,
+            {
+              user: { username: data.username, id: data.user_id },
+              content: data.message,
+              timestamp: new Date().toISOString(),
+            },
+          ];
+        });
       } else if (data.type === 'user_join') {
         setOnlineUsers((prev) => new Set([...prev, data.username]));
         showNotification(`${data.username} joined the chat`);
