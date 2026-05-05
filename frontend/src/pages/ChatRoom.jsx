@@ -11,7 +11,10 @@ const ChatRoom = () => {
   const [newMessage, setNewMessage] = useState('');
   const [ws, setWs] = useState(null);
   const [roomId, setRoomId] = useState(null);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
+  const [typingUsers, setTypingUsers] = useState(new Set());
   const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
     loadRoomAndMessages();
@@ -20,6 +23,9 @@ const ChatRoom = () => {
     return () => {
       if (ws) {
         ws.close();
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
       }
     };
   }, [roomName]);
@@ -65,9 +71,17 @@ const ChatRoom = () => {
           },
         ]);
       } else if (data.type === 'user_join') {
-        console.log(`${data.username} joined`);
+        setOnlineUsers((prev) => new Set([...prev, data.username]));
+        showNotification(`${data.username} joined the chat`);
       } else if (data.type === 'user_leave') {
-        console.log(`${data.username} left`);
+        setOnlineUsers((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(data.username);
+          return newSet;
+        });
+        showNotification(`${data.username} left the chat`);
+      } else if (data.type === 'typing') {
+        handleTypingIndicator(data.username, data.is_typing);
       }
     };
 
@@ -82,6 +96,46 @@ const ChatRoom = () => {
     setWs(websocket);
   };
 
+  const handleTypingIndicator = (username, isTyping) => {
+    if (username === user.username) return;
+
+    setTypingUsers((prev) => {
+      const newSet = new Set(prev);
+      if (isTyping) {
+        newSet.add(username);
+      } else {
+        newSet.delete(username);
+      }
+      return newSet;
+    });
+  };
+
+  const handleInputChange = (e) => {
+    setNewMessage(e.target.value);
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(
+        JSON.stringify({
+          type: 'typing',
+          is_typing: e.target.value.length > 0,
+        })
+      );
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        ws.send(
+          JSON.stringify({
+            type: 'typing',
+            is_typing: false,
+          })
+        );
+      }, 2000);
+    }
+  };
+
   const sendMessage = (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !ws) return;
@@ -92,6 +146,13 @@ const ChatRoom = () => {
       })
     );
 
+    ws.send(
+      JSON.stringify({
+        type: 'typing',
+        is_typing: false,
+      })
+    );
+
     setNewMessage('');
   };
 
@@ -99,10 +160,26 @@ const ChatRoom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const showNotification = (message) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Live Chat', { body: message });
+    }
+  };
+
+  const requestNotificationPermission = () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  };
+
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
+
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -115,7 +192,12 @@ const ChatRoom = () => {
           alignItems: 'center',
         }}
       >
-        <h2 style={{ margin: 0 }}>Room: {roomName}</h2>
+        <div>
+          <h2 style={{ margin: 0 }}>Room: {roomName}</h2>
+          <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+            {onlineUsers.size > 0 && `${onlineUsers.size} online`}
+          </div>
+        </div>
         <button
           onClick={() => navigate('/rooms')}
           style={{ padding: '8px 15px', cursor: 'pointer' }}
@@ -165,6 +247,12 @@ const ChatRoom = () => {
         <div ref={messagesEndRef} />
       </div>
 
+      {typingUsers.size > 0 && (
+        <div style={{ padding: '5px 20px', fontSize: '12px', color: '#666', fontStyle: 'italic' }}>
+          {Array.from(typingUsers).join(', ')} {typingUsers.size === 1 ? 'is' : 'are'} typing...
+        </div>
+      )}
+
       <form
         onSubmit={sendMessage}
         style={{
@@ -177,7 +265,7 @@ const ChatRoom = () => {
         <input
           type="text"
           value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
+          onChange={handleInputChange}
           placeholder="Type a message..."
           style={{
             flex: 1,

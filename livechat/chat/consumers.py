@@ -47,19 +47,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         text_data_json = json.loads(text_data)
-        message = text_data_json['message']
+        message_type = text_data_json.get('type', 'message')
 
-        await self.save_message(message)
+        if message_type == 'typing':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'typing_indicator',
+                    'username': self.user.username,
+                    'is_typing': text_data_json.get('is_typing', False)
+                }
+            )
+        else:
+            message = text_data_json.get('message', '')
+            if message:
+                await self.save_message(message)
 
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'chat_message',
-                'message': message,
-                'username': self.user.username,
-                'user_id': self.user.id
-            }
-        )
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'chat_message',
+                        'message': message,
+                        'username': self.user.username,
+                        'user_id': self.user.id
+                    }
+                )
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
@@ -68,6 +80,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'username': event['username'],
             'user_id': event['user_id']
         }))
+
+    async def typing_indicator(self, event):
+        if event['username'] != self.user.username:
+            await self.send(text_data=json.dumps({
+                'type': 'typing',
+                'username': event['username'],
+                'is_typing': event['is_typing']
+            }))
 
     async def user_join(self, event):
         await self.send(text_data=json.dumps({
@@ -89,4 +109,5 @@ class ChatConsumer(AsyncWebsocketConsumer):
             user=self.user,
             content=message
         )
+
 
