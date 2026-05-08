@@ -587,17 +587,6 @@ CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "livechat.asgi:application"]
 ```
 
 ---
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
 ---
 
 ## 📝 License
@@ -606,28 +595,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 👨‍💻 Author
-
-**Your Name**
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your Name](https://linkedin.com/in/yourprofile)
-
----
-
-## 🙏 Acknowledgments
-
-- Django Channels documentation
-- React documentation
-- WebSocket API documentation
-- Community contributors
-
----
 
 <div align="center">
 
 **[⬆ Back to Top](#-live-chat-application)**
-
-Made with ❤️ using Django and React
 
 </div>
 
